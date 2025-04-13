@@ -2,15 +2,17 @@ from kalman_filter import KalmanFilter
 
 
 class Point:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+    def __init__(self, x: int | float, y: int | float):
+        self.x = int(x)
+        self.y = int(y)
+
+    def as_tuple(self) -> tuple[int, int]:
+        return (self.x, self.y)
 
     def __add__(self, other: "Point") -> "Point":
         return Point(self.x + other.x, self.y + other.y)
 
     def __sub__(self, other):
-
         return Point(self.x - other.x, self.y - other.y)
 
     def __mul__(self, scalar):
@@ -40,28 +42,49 @@ class PointKalmanFilter:
 
 
 class Rectangle:
-    def __init__(self, x, y, w, h):
+    class RectangleCorners:
+        def __init__(self, x: float, y: float, width: float, height: float):
+            self.top_left = Point(x, y)
+            self.top_right = Point(x + width, y)
+            self.bottom_right = Point(x + width, y + height)
+            self.bottom_left = Point(x, y + height)
+
+    def __init__(self, x: float, y: float, width: float, height: float):
         self.x = x
         self.y = y
-        self.w = w
-        self.h = h
+        self.width = width
+        self.height = height
 
     def get_center(self) -> Point:
-        return Point(self.x + self.w / 2, self.y + self.h / 2)
+        return Point(self.x + self.width / 2, self.y + self.height / 2)
 
-    def get_corners(self) -> list[Point]:
-        return [
-            Point(self.x, self.y),
-            Point(self.x + self.w, self.y),
-            Point(self.x + self.w, self.y + self.h),
-            Point(self.x, self.y + self.h),
-        ]
+    def get_corners(self) -> "Rectangle.RectangleCorners":
+        return Rectangle.RectangleCorners(self.x, self.y, self.width, self.height)
 
     def get_area(self) -> float:
-        return self.w * self.h
+        return self.width * self.height
 
     def get_aspect_ratio(self) -> float:
-        return self.w / self.h if self.h != 0 else 0
+        return self.width / self.height if self.height != 0 else 0
 
     def __str__(self):
-        return f"Rectangle(x={self.x}, y={self.y}, w={self.w}, h={self.h})"
+        return f"Rectangle(x={self.x}, y={self.y}, w={self.width}, h={self.height}, c={self.get_center()})"
+
+
+class RectangleKalmanFilter:
+    def __init__(self, k=5) -> None:
+        self.center_filter = PointKalmanFilter(k)
+        self.width_filter = KalmanFilter(k)
+        self.height_filter = KalmanFilter(k)
+
+    def update(self, *new_rects: Rectangle):
+        self.center_filter.update(*[p.get_center() for p in new_rects])
+        self.width_filter.update(*[r.width for r in new_rects])
+        self.height_filter.update(*[r.height for r in new_rects])
+
+    def get(self) -> Rectangle:
+        center = self.center_filter.get()
+        width = self.width_filter.get()
+        height = self.height_filter.get()
+
+        return Rectangle(center.x - width / 2, center.y - height / 2, width, height)
