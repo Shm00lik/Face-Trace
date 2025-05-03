@@ -1,5 +1,6 @@
 import cv2
-from models import Rectangle, Point, PointKalmanFilter, RectangleKalmanFilter
+from models import Rectangle, RectangleKalmanFilter, Resolution
+from kalman_filter import KalmanFilterConstants
 
 ### HOW TO STREAM THE FEED TO ZOOM:
 ### 1. Run this program.
@@ -14,9 +15,10 @@ face_classifier = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"  # type: ignore
 )
 
-K = 25
+RES = Resolution(1280, 720)
+KALMAN_CONSTANTS = KalmanFilterConstants(K=25)
 
-rect_kalman_filter = RectangleKalmanFilter(K)
+rect_kalman_filter = RectangleKalmanFilter(KALMAN_CONSTANTS)
 
 while True:
     ret, frame = cap.read()  # Read a frame from the webcam
@@ -55,30 +57,29 @@ while True:
     cv2.circle(frame, center.as_tuple(), 5, (0, 0, 255), 10)
 
     OFFSET = 50  # Pixels
-    RES = 16 / 9
 
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    frame_width: int = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height: int = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    top_y_cropped_frame = max(corners.top_left.y - OFFSET, 0)
-    bottom_y_cropped_frame = min(corners.bottom_right.y + OFFSET, frame_height)
+    top_y_cropped_frame: int = max(corners.top_left.y - OFFSET, 0)
+    bottom_y_cropped_frame: int = min(corners.bottom_right.y + OFFSET, frame_height)
 
-    cropped_height = bottom_y_cropped_frame - top_y_cropped_frame
-    cropped_width = int(cropped_height * RES)
+    cropped_height: int = bottom_y_cropped_frame - top_y_cropped_frame
+    cropped_width: int = int(cropped_height * RES.aspet_ratio)
 
-    exceeds_left = int(center.x - cropped_width / 2) < 0
-    exceeds_right = int(center.x + cropped_width / 2) > frame_width
+    exceeds_left: int = (center.x - cropped_width) // 2 < 0
+    exceeds_right: int = (center.x + cropped_width) // 2 > frame_width
 
-    left_x_cropped_frame = 0
-    right_x_cropped_frame = frame_width
+    left_x_cropped_frame: int = 0
+    right_x_cropped_frame: int = frame_width
 
     if exceeds_left:
         right_x_cropped_frame = min(cropped_width, frame_width)
     elif exceeds_right:
         left_x_cropped_frame = max(frame_width - cropped_width, 0)
     else:
-        left_x_cropped_frame = int(center.x - cropped_width / 2)
-        right_x_cropped_frame = int(center.x + cropped_width / 2)
+        left_x_cropped_frame = (center.x - cropped_width) // 2
+        right_x_cropped_frame = (center.x + cropped_width) // 2
 
     cv2.line(
         frame,
@@ -101,7 +102,7 @@ while True:
         left_x_cropped_frame:right_x_cropped_frame,
     ]
 
-    resized = cv2.resize(cropped_frame, (1920, 1080))
+    resized = cv2.resize(cropped_frame, RES.as_tuple())
     cv2.imshow("Webcam Feed", frame)  # Show the frame
     cv2.imshow("Cropped Feed", resized)  # Show the frame
 

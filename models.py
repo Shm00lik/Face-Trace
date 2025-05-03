@@ -1,4 +1,4 @@
-from kalman_filter import KalmanFilter
+from kalman_filter import KalmanFilter, KalmanFilterConstants
 
 
 class Point:
@@ -29,9 +29,10 @@ class Point:
 
 
 class PointKalmanFilter:
-    def __init__(self, k=5) -> None:
-        self.x_filter = KalmanFilter(k)
-        self.y_filter = KalmanFilter(k)
+    def __init__(self, constants: KalmanFilterConstants) -> None:
+        self.constants = constants
+        self.x_filter = KalmanFilter(self.constants)
+        self.y_filter = KalmanFilter(self.constants)
 
     def update(self, *new_points: Point):
         self.x_filter.update(*[p.x for p in new_points])
@@ -72,10 +73,11 @@ class Rectangle:
 
 
 class RectangleKalmanFilter:
-    def __init__(self, k=5) -> None:
-        self.center_filter = PointKalmanFilter(k)
-        self.width_filter = KalmanFilter(k)
-        self.height_filter = KalmanFilter(k)
+    def __init__(self, constants: KalmanFilterConstants) -> None:
+        self.constants = constants
+        self.center_filter = PointKalmanFilter(self.constants)
+        self.width_filter = KalmanFilter(self.constants)
+        self.height_filter = KalmanFilter(self.constants)
 
     def update(self, *new_rects: Rectangle):
         self.center_filter.update(*[p.get_center() for p in new_rects])
@@ -88,3 +90,13 @@ class RectangleKalmanFilter:
         height = self.height_filter.get()
 
         return Rectangle(center.x - width / 2, center.y - height / 2, width, height)
+
+
+class Resolution:
+    def __init__(self, width: int, height: int):
+        self.width = width
+        self.height = height
+        self.aspet_ratio = self.width / self.height
+
+    def as_tuple(self):
+        return (self.width, self.height)
